@@ -1,6 +1,7 @@
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import { PrivacySettings } from "@/components/settings/privacy-settings";
@@ -23,7 +24,7 @@ export default function PrivacyPage() {
         </Link>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="editorial-title text-3xl sm:text-4xl text-[#11182B] tracking-tight">Your Privacy & Permissions</h1>
+            <h1 className="editorial-title text-3xl sm:text-4xl text-[#11182B] tracking-tight">Your permissions</h1>
             <p className="mt-1 text-sm text-[#64748B] max-w-2xl">
               Control data sharing choices and AI reasoning consents. Changes apply immediately and govern profile indexing.
             </p>
@@ -44,6 +45,7 @@ export default function PrivacyPage() {
 }
 
 async function Choices() {
+  await connection();
   const { user } = await requireOnboardedUser();
   const latest = await getCurrentConsents(user.id);
   const initial = Object.fromEntries(CONSENT_PURPOSES.map((p) => [p, latest[p]?.granted === true])) as ConsentChoices;

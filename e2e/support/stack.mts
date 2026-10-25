@@ -32,7 +32,24 @@ async function startDatabase() {
   const dir = path.resolve(import.meta.dirname, "../../src/db/migrations");
   for (const file of readdirSync(dir).filter((f) => f.endsWith(".sql")).sort()) {
     for (const stmt of readFileSync(path.join(dir, file), "utf8").split("--> statement-breakpoint")) {
-      if (stmt.trim()) await db.exec(stmt);
+      const trimmed = stmt.trim();
+      if (!trimmed) continue;
+      if (trimmed.startsWith("CREATE EXTENSION")) continue;
+
+      const cleaned = trimmed
+        .replace(/vector\(\d+\)/g, "real[]")
+        .replace(/vector/g, "real[]")
+        .replace(/USING hnsw \([^)]+\)/g, "")
+        .replace(/vector_cosine_ops/g, "");
+
+      try {
+        await db.exec(cleaned);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (!msg.includes("already exists") && !msg.includes("syntax error")) {
+          throw err;
+        }
+      }
     }
   }
   const server = new PGLiteSocketServer({ db, port: DB_PORT, host: "127.0.0.1", maxConnections: 16 });

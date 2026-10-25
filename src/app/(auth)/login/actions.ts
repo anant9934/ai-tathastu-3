@@ -5,12 +5,7 @@ import { redirect } from "next/navigation";
 
 import { signIn } from "@/auth";
 import { emailProviderId } from "@/lib/auth-providers";
-
-/** Only same-origin paths; anything else falls back to the wizard. */
-function safeRedirect(value: FormDataEntryValue | null): string {
-  const path = typeof value === "string" ? value : "";
-  return path.startsWith("/") && !path.startsWith("//") ? path : "/onboarding";
-}
+import { toLocalPath } from "@/lib/safe-redirect";
 
 export async function signInWithProvider(formData: FormData) {
   const requested = formData.get("provider");
@@ -20,9 +15,12 @@ export async function signInWithProvider(formData: FormData) {
     redirect("/login?error=Configuration");
   }
 
+  const rawRedirect = formData.get("redirectTo");
+  const redirectTo = toLocalPath(typeof rawRedirect === "string" ? rawRedirect : null);
+
   try {
     await signIn(provider, {
-      redirectTo: safeRedirect(formData.get("redirectTo")),
+      redirectTo,
       ...(requested === "email" ? { email: String(formData.get("email") ?? "").trim() } : {}),
     });
   } catch (error) {

@@ -3,21 +3,43 @@ import { expect, test } from "@playwright/test";
 import { createUser, signIn } from "./support/fixtures";
 
 const VIEWPORTS = [
-  { name: "Desktop", width: 1440, height: 900 },
-  { name: "Laptop", width: 1280, height: 800 },
-  { name: "Tablet", width: 768, height: 1024 },
-  { name: "Mobile", width: 390, height: 844 },
-  { name: "Narrow mobile", width: 320, height: 700 },
+  { name: "Desktop Large", width: 1440, height: 900 },
+  { name: "Desktop Standard", width: 1280, height: 800 },
+  { name: "Small Desktop / Tablet Landscape", width: 1024, height: 768 },
+  { name: "Tablet Portrait", width: 768, height: 1024 },
+  { name: "Large Mobile", width: 430, height: 932 },
+  { name: "Standard Mobile", width: 390, height: 844 },
+  { name: "Compact Mobile", width: 360, height: 780 },
+  { name: "Narrow Mobile", width: 320, height: 700 },
 ] as const;
 
-test.describe("Onboarding Responsive Viewports", () => {
+test.describe("Responsive Viewports Comprehensive Audit", () => {
   for (const vp of VIEWPORTS) {
     test(`renders cleanly without horizontal overflow at ${vp.name} (${vp.width}x${vp.height})`, async ({
       page,
       context,
     }) => {
       await page.setViewportSize({ width: vp.width, height: vp.height });
-      const user = await createUser(`User ${vp.name}`, "role");
+
+      // Test public unauthenticated pages first
+      const publicRoutes = ["/", "/about", "/contact", "/team", "/login"];
+      for (const route of publicRoutes) {
+        await page.goto(route);
+        await page.waitForLoadState("domcontentloaded");
+        const hasHorizontalOverflow = await page.evaluate(() => {
+          return (
+            document.documentElement.scrollWidth > window.innerWidth ||
+            document.body.scrollWidth > window.innerWidth
+          );
+        });
+        expect(
+          hasHorizontalOverflow,
+          `Horizontal scrollbar detected on ${route} at ${vp.name} (${vp.width}px)`
+        ).toBe(false);
+      }
+
+      // Test onboarding flows with user
+      const user = await createUser(`User ${vp.name.replace(/\s+/g, "")}`, "role");
       await signIn(context, user);
 
       const routes = [

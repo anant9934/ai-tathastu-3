@@ -144,7 +144,7 @@ export function InteractiveMarkup({ html }: { html: string }) {
   return (
     <div
       ref={containerRef}
-      className="min-h-screen bg-white text-[#0F172A]"
+      className="min-h-screen bg-white text-[#0F172A] overflow-x-hidden w-full max-w-full"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

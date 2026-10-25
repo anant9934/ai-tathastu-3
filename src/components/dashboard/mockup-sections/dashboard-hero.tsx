@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
@@ -12,16 +11,7 @@ interface DashboardHeroProps {
   onOpenYora?: () => void;
 }
 
-function getGreeting() {
-  const hour = new Date().getHours();
-  if (hour >= 4 && hour < 12) return "Good morning";
-  if (hour >= 12 && hour < 17) return "Good afternoon";
-  return "Good evening";
-}
-
 export function DashboardHero({ name, line, updated, onOpenYora }: DashboardHeroProps) {
-  const [greeting] = useState(getGreeting);
-
   return (
     <div className="relative overflow-hidden rounded-2xl border border-[#E7EAF3] bg-gradient-to-r from-white via-[#FFF7F9] to-[#F8F5FF] p-4.5 sm:p-6 lg:p-7 shadow-xs">
       {/* Subtle ambient light effects without visual clutter */}
@@ -32,15 +22,14 @@ export function DashboardHero({ name, line, updated, onOpenYora }: DashboardHero
         {/* Left greeting, direction, and primary action */}
         <div className="max-w-xl">
           <h1 className="editorial-title text-2xl sm:text-3xl lg:text-[2.25rem] text-[#11182B] tracking-tight leading-[1.2]">
-            {greeting},{" "}
+            Good to see you,{" "}
             <span className="bg-gradient-to-r from-[#FF496D] to-[#FF713D] bg-clip-text text-transparent font-normal italic">
-              {name}!
-            </span>{" "}
-            👋
+              {name}.
+            </span>
           </h1>
           <p className="mt-2 text-sm sm:text-[15px] font-medium text-[#64748B] leading-relaxed">
             Your intelligence workspace connects verified skills, projects, and career opportunities.{" "}
-            <span className="text-[#FF496D] font-semibold">Tathastu!</span> ✨
+            <span className="text-[#FF496D] font-semibold">Tathastu.</span>
           </p>
 
           {line && (

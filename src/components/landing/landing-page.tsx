@@ -47,7 +47,7 @@ export function LandingPage({
   }, [user]);
 
   return (
-    <div className="relative min-h-screen bg-white text-[#121624]">
+    <div className="relative min-h-screen bg-white text-[#121624] overflow-x-hidden w-full max-w-full">
       {/* Landing page markup */}
       <div
         ref={containerRef}

@@ -1840,6 +1840,9 @@
        RESPONSIVE BREAKPOINTS
     ============================================================ */
     @media (max-width: 1024px) {
+      .team-nav-links {
+        display: none;
+      }
       .core-team-grid {
         grid-template-columns: repeat(2, 1fr);
       }
@@ -1851,6 +1854,19 @@
       }
       .footer-grid {
         grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 480px) {
+      .team-nav-signin {
+        display: none;
+      }
+      .team-brand-sub {
+        display: none;
+      }
+      .team-nav-cta {
+        padding: 8px 14px;
+        font-size: 0.8rem;
       }
     }
 

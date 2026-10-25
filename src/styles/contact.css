@@ -358,6 +358,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
+      max-width: 100%;
     }
     .contact-center-hub {
       position: relative;
@@ -1581,12 +1583,40 @@
       }
     }
 
-    @media (max-width: 640px) {
+    @media (max-width: 1024px) {
       .site-nav-inner {
         height: 64px;
       }
       .nav-links-list {
         display: none;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .nav-signin-link {
+        display: none;
+      }
+      .brand-sub {
+        display: none;
+      }
+      .nav-cta-btn {
+        padding: 8px 14px;
+        font-size: 0.8rem;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .contact-visual-stage {
+        height: 320px;
+        overflow: hidden;
+      }
+      .c-orbit-1 {
+        width: 260px;
+        height: 260px;
+      }
+      .c-orbit-2 {
+        width: 290px;
+        height: 290px;
       }
       .contact-hero-title {
         font-size: 2.3rem;

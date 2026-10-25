@@ -405,6 +405,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
+      max-width: 100%;
     }
     .hero-center-core {
       position: relative;
@@ -1693,12 +1695,40 @@
       }
     }
 
-    @media (max-width: 640px) {
+    @media (max-width: 1024px) {
       .site-nav-inner {
         height: 64px;
       }
       .nav-links-list {
         display: none; /* Mobile navigation simplified */
+      }
+    }
+
+    @media (max-width: 480px) {
+      .nav-signin-link {
+        display: none;
+      }
+      .brand-sub {
+        display: none;
+      }
+      .nav-cta-btn {
+        padding: 8px 14px;
+        font-size: 0.8rem;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .hero-visual-stage {
+        height: 320px;
+        overflow: hidden;
+      }
+      .orbit-ring-1 {
+        width: 260px;
+        height: 260px;
+      }
+      .orbit-ring-2 {
+        width: 290px;
+        height: 290px;
       }
       .about-hero-title {
         font-size: 2.3rem;
