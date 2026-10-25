@@ -1,0 +1,88 @@
+import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { Suspense } from "react";
+
+import { signOut } from "@/auth";
+import { BrandLogo } from "@/components/brand-logo";
+import { StepRail } from "@/components/onboarding/step-rail";
+import { getCurrentUser, getOnboardingState } from "@/lib/dal";
+
+export default function OnboardingLayout({ children }: LayoutProps<"/onboarding">) {
+  return (
+    <div className="flex min-h-dvh flex-col bg-[#FAFAFC] text-[#0F172A]">
+      <a
+        href="#step-content"
+        className="sr-only z-50 rounded-md bg-primary px-3 py-2 text-primary-foreground focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+      >
+        Skip to content
+      </a>
+
+      {/* Top Navigation Header */}
+      <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur-md sm:px-8 lg:px-10 lg:h-18">
+        <div className="flex items-center gap-8">
+          <BrandLogo href="/" withTagline size="sm" />
+          <nav className="hidden items-center gap-6 text-sm font-semibold text-slate-600 md:flex" aria-label="Main navigation">
+            <Link href="/#ecosystem" className="transition-colors hover:text-[#0F172A]">
+              Ecosystem
+            </Link>
+            <Link href="/#campus" className="transition-colors hover:text-[#0F172A]">
+              For Campuses
+            </Link>
+            <Link href="/#how" className="transition-colors hover:text-[#0F172A]">
+              Career Lab
+            </Link>
+            <Link href="/about" className="transition-colors hover:text-[#0F172A]">
+              About
+            </Link>
+            <Link href="/#footer" className="transition-colors hover:text-[#0F172A]">
+              Pricing
+            </Link>
+          </nav>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <form
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/login" });
+            }}
+          >
+            <button
+              type="submit"
+              className="inline-flex min-h-[38px] items-center gap-2 rounded-xl border border-slate-200 px-3.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring cursor-pointer"
+            >
+              <LogOut aria-hidden="true" className="size-3.5" />
+              Sign out
+            </button>
+          </form>
+
+          <div className="hidden sm:block">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#FF6B4A] via-[#FF2A85] to-[#9333EA] px-3.5 py-1.5 text-xs font-bold text-white shadow-xs">
+              Onboarding in progress
+            </span>
+          </div>
+        </div>
+      </header>
+
+      {/* Main body: Sidebar + Step Content */}
+      <div className="mx-auto grid w-full flex-1 grid-cols-1 lg:grid-cols-[18rem_minmax(0,1fr)]">
+        <aside className="border-b border-slate-200/70 bg-white px-4 py-3 sm:px-8 lg:sticky lg:top-18 lg:h-[calc(100dvh-4.5rem)] lg:border-r lg:border-b-0 lg:px-8 lg:py-10">
+          <Suspense fallback={<StepRail currentStep={null} persona={null} />}>
+            <RailWithProgress />
+          </Suspense>
+        </aside>
+
+        <main id="step-content" className="flex flex-col justify-between px-4 pt-6 pb-0 sm:px-8 lg:px-12 lg:pt-10">
+          <div className="mx-auto w-full max-w-5xl xl:max-w-6xl motion-fade-in">{children}</div>
+        </main>
+
+      </div>
+    </div>
+  );
+}
+
+async function RailWithProgress() {
+  const user = await getCurrentUser();
+  const state = await getOnboardingState(user.id);
+  return <StepRail currentStep={state.currentStep} persona={user.role} />;
+}

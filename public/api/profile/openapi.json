@@ -1,0 +1,643 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AI Tathastu Profile API",
+    "version": "1.1.0",
+    "description": "Read-only profile of the signed-in user, consumed by AI Tathastu modules (Avasar, Collaborate, Learn, Meet, Iris). No module reads profile tables directly. Breaking changes ship under /v2 with a deprecation notice; additive changes may appear in v1, so clients must ignore unknown fields.\n\nOnly user-approved data is included: facts the user confirmed or edited, plus data from connected sources (GitHub, Kaggle, Stack Exchange, portfolio) the user has not rejected. Contact details (email, phone) are never returned.\n\nTwo ways to authenticate:\n- **Modules** (same domain) use the Auth.js session cookie and must name themselves with the `X-AIT-Module` header (or `?module=`). Each module is gated by its feature flag (`<module>_profile_api`); when it's off the API answers 403. Response: `ProfileV1`.\n- **The pilot-site embed** sends `Authorization: Bearer <embed token>`. Tokens come from the /embed/authorize popup (or `GET /api/auth/embed-token` for same-site pages), last 15 minutes, are read-only, signed with a dedicated secret, and only work from the origin they were minted for. Gated by `pilot_site_embed`. Response: the compact `EmbedV1` (no contact details, no history)."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Same origin as the app (modules are served under the same domain)"
+    }
+  ],
+  "security": [
+    {
+      "sessionCookie": []
+    },
+    {
+      "sessionCookieSecure": []
+    },
+    {
+      "embedBearer": []
+    }
+  ],
+  "paths": {
+    "/api/profile/v1/me": {
+      "get": {
+        "operationId": "getMyProfile",
+        "summary": "Get the signed-in user's profile",
+        "description": "Fetch once per page load (or once per session via a shared context) and keep it in module state; do not refetch on every render. Responses carry an ETag; send it as If-None-Match to get 304 when nothing changed. Modules must handle 401/503 with their own error state and never crash.",
+        "parameters": [
+          {
+            "name": "X-AIT-Module",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "avasar",
+                "collaborate",
+                "learn",
+                "meet",
+                "iris"
+              ]
+            },
+            "description": "Required with cookie auth (or use ?module=). Not used with embed tokens."
+          },
+          {
+            "name": "module",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "avasar",
+                "collaborate",
+                "learn",
+                "meet",
+                "iris"
+              ]
+            },
+            "description": "Alternative to the X-AIT-Module header."
+          },
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "ETag from a previous response."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The profile.",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-Profile-API-Version": {
+                "schema": {
+                  "type": "string",
+                  "const": "1"
+                }
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "private, no-cache"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ProfileV1"
+                    },
+                    {
+                      "$ref": "#/components/schemas/EmbedV1"
+                    }
+                  ],
+                  "description": "ProfileV1 for module (cookie) calls; EmbedV1 for embed-token calls."
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified since the ETag sent in If-None-Match."
+          },
+          "401": {
+            "description": "No valid session or embed token (expired, forged, wrong origin), or the account was deleted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Temporarily unavailable. Modules must degrade gracefully.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Cookie call without a known module (error: module_required).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The integration's feature flag is off (error: disabled).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/embed-token": {
+      "get": {
+        "operationId": "mintEmbedToken",
+        "summary": "Mint a 15-minute embed token for the signed-in user",
+        "description": "Session cookie only (an embed token can't mint another). No CORS: pilot sites receive tokens through the /embed/authorize popup via postMessage.",
+        "security": [
+          {
+            "sessionCookie": []
+          },
+          {
+            "sessionCookieSecure": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "origin",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            },
+            "description": "Pilot-site origin; must be in EMBED_ALLOWED_ORIGINS. The token only works from it."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "token",
+                    "expiresAt",
+                    "origin",
+                    "tokenType"
+                  ],
+                  "properties": {
+                    "token": {
+                      "type": "string"
+                    },
+                    "expiresAt": {
+                      "type": "integer",
+                      "description": "Unix seconds"
+                    },
+                    "origin": {
+                      "type": "string"
+                    },
+                    "tokenType": {
+                      "const": "Bearer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Origin not allow-listed"
+          },
+          "401": {
+            "description": "Not signed in"
+          },
+          "403": {
+            "description": "pilot_site_embed is off"
+          },
+          "503": {
+            "description": "EMBED_JWT_SECRET not configured"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "authjs.session-token",
+        "description": "Auth.js session cookie (http, local development)."
+      },
+      "sessionCookieSecure": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__Secure-authjs.session-token",
+        "description": "Auth.js session cookie (https)."
+      },
+      "embedBearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "15-minute embed token (scope profile:read:embed), origin-bound."
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error",
+          "message"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ProfileV1": {
+        "type": "object",
+        "required": [
+          "identity",
+          "skills",
+          "projects",
+          "experience",
+          "education",
+          "erisScore",
+          "readinessIndicators",
+          "goals"
+        ],
+        "properties": {
+          "identity": {
+            "type": "object",
+            "required": [
+              "name",
+              "headline",
+              "university",
+              "degree",
+              "career_role"
+            ],
+            "properties": {
+              "name": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "headline": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "university": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "degree": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "career_role": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Primary career direction id, e.g. ml_engineer. Null if the user described their own direction instead."
+              }
+            }
+          },
+          "skills": {
+            "type": "array",
+            "description": "Canonical skills, strongest evidence first.",
+            "items": {
+              "type": "object",
+              "required": [
+                "name",
+                "category",
+                "evidenceStrength",
+                "verificationStatus"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "category": {
+                  "type": "string",
+                  "examples": [
+                    "language",
+                    "ml_framework",
+                    "mlops",
+                    "other"
+                  ]
+                },
+                "evidenceStrength": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "Summed evidence, capped at 1. Confirmed resume = 0.5, GitHub language usage up to 0.7, self-reported = 0.3."
+                },
+                "verificationStatus": {
+                  "type": "string",
+                  "enum": [
+                    "verified",
+                    "self_reported"
+                  ],
+                  "description": "verified = backed by a confirmed resume fact or a connected source."
+                }
+              }
+            }
+          },
+          "projects": {
+            "type": "array",
+            "description": "Unified projects: the same project from the CV and GitHub appears once.",
+            "items": {
+              "type": "object",
+              "required": [
+                "canonicalTitle",
+                "technologies",
+                "links",
+                "contributions"
+              ],
+              "properties": {
+                "canonicalTitle": {
+                  "type": "string"
+                },
+                "technologies": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "links": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "format": "uri"
+                  }
+                },
+                "contributions": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Descriptions of the work, from the resume and the repository."
+                }
+              }
+            }
+          },
+          "experience": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "org",
+                "role",
+                "dateRange",
+                "responsibilities"
+              ],
+              "properties": {
+                "org": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "role": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "dateRange": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "examples": [
+                    "Jun 2024 – Aug 2024"
+                  ]
+                },
+                "responsibilities": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "education": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "institution",
+                "degree",
+                "dates",
+                "grade"
+              ],
+              "properties": {
+                "institution": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "degree": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "dates": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "examples": [
+                    "Jul 2021 – May 2025"
+                  ]
+                },
+                "grade": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "erisScore": {
+            "type": "object",
+            "required": [
+              "overall",
+              "byRole",
+              "gaps"
+            ],
+            "properties": {
+              "overall": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 1,
+                "description": "Interview readiness for the primary role (0–1). Null until computed."
+              },
+              "byRole": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "gaps": {
+                "type": "array",
+                "maxItems": 3,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "skill",
+                    "readiness",
+                    "weight"
+                  ],
+                  "properties": {
+                    "skill": {
+                      "type": "string"
+                    },
+                    "readiness": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "weight": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "readinessIndicators": {
+            "type": "object",
+            "required": [
+              "profileComplete",
+              "resumeLinked",
+              "connectorsCount"
+            ],
+            "properties": {
+              "profileComplete": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 1
+              },
+              "resumeLinked": {
+                "type": "boolean",
+                "description": "At least one confirmed resume fact."
+              },
+              "connectorsCount": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "goals": {
+            "type": "object",
+            "required": [
+              "primaryRole",
+              "priorities"
+            ],
+            "properties": {
+              "primaryRole": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "priorities": {
+                "type": "array",
+                "maxItems": 3,
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "learn_ai_ml",
+                    "avasar_jobs",
+                    "people_mentors",
+                    "collaborate",
+                    "build_projects",
+                    "research_events"
+                  ]
+                },
+                "description": "Ranked; index 0 is the primary priority."
+              }
+            }
+          }
+        }
+      },
+      "EmbedV1": {
+        "type": "object",
+        "required": [
+          "name",
+          "careerRole",
+          "erisScore",
+          "topSkills",
+          "dashboardUrl"
+        ],
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "careerRole": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "erisScore": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1
+          },
+          "topSkills": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "string"
+            }
+          },
+          "dashboardUrl": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      }
+    }
+  }
+}

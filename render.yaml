@@ -1,0 +1,59 @@
+# Render Blueprint: the Python worker as a free Web Service. server.py serves
+# /health and runs the queue loop in a thread; the web app pings
+# WORKER_WAKE_URL when it queues a job, since free instances sleep when idle.
+# Render dashboard → New → Blueprint → pick this repo. Secrets marked
+# `sync: false` are prompted for on first deploy and never stored in git.
+services:
+  - type: web
+    name: ai-tathastu-worker
+    runtime: docker
+    # Paths are from the repo root.
+    dockerfilePath: ./worker/Dockerfile
+    dockerContext: ./worker
+    plan: free
+    healthCheckPath: /health
+    # Neon runs in us-east-2 (Ohio); keep the worker next to it.
+    region: ohio
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - worker/**
+    envVars:
+      # Direct (non-pooler) Neon URL: long-lived connection, FOR UPDATE SKIP LOCKED.
+      - key: WORKER_DATABASE_URL
+        sync: false
+      - key: CONNECTOR_TOKEN_KEY
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: GROQ_KEYS
+        sync: false
+      - key: GROQ_MODELS
+        value: openai/gpt-oss-120b:strict,openai/gpt-oss-20b:strict
+      - key: LOG_LEVEL
+        value: INFO
+      # Emails go through the web app (free instances can't use SMTP). Same value as Vercel.
+      - key: INTERNAL_API_SECRET
+        sync: false
+      - key: APP_URL
+        value: https://www.aitathastu.com
+      # LLM fallback chain: Gemini (text fallback + primary vision), OpenRouter (last resort).
+      - key: GEMINI_KEYS
+        sync: false
+      - key: OPENROUTER_KEYS
+        sync: false
+      # Pools for connectors not wired up yet; harmless to set now.
+      - key: FIRECRAWL_KEYS
+        sync: false
+      - key: APIFY_TOKENS
+        sync: false
+      - key: KAGGLE_KEYS
+        sync: false
+      - key: STACK_EXCHANGE_KEY
+        sync: false

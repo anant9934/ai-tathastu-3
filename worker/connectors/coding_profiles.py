@@ -1,0 +1,109 @@
+"""LeetCode and HackerRank via their public profile APIs (no login, no cookies).
+
+Both also feed ERIS's problem-solving component: the stats live in the
+extracted_value of a fact with record_key 'leetcode:stats' / 'hackerrank:stats'.
+"""
+
+from __future__ import annotations
+
+from typing import Any, Dict, List
+
+from connectors.common import Facts, HttpError, finish_sync, http_json, load_connection, set_status
+from jobs import Job, NeedsReview
+
+LEETCODE_QUERY = """query($u: String!) {
+  matchedUser(username: $u) {
+    username
+    profile { realName ranking }
+    submitStatsGlobal { acSubmissionNum { difficulty count } }
+    languageProblemCount { languageName problemsSolved }
+    badges { name }
+  }
+  userContestRanking(username: $u) { rating attendedContestsCount topPercentage }
+}"""
+
+
+def fetch_leetcode(username: str) -> Dict[str, Any]:
+    out = http_json("POST", "https://leetcode.com/graphql", {"Referer": "https://leetcode.com"},
+                    {"query": LEETCODE_QUERY, "variables": {"u": username}})
+    data = (out or {}).get("data") or {}
+    if not data.get("matchedUser"):
+        raise NeedsReview(f"LeetCode user '{username}' not found")
+    return data
+
+
+def map_leetcode(data: Dict[str, Any], facts: Facts) -> Facts:
+    user = data["matchedUser"]
+    name = user["username"]
+    ev = f"leetcode.com/u/{name}"
+    solved = {s["difficulty"].lower(): s["count"] for s in user["submitStatsGlobal"]["acSubmissionNum"]}
+    stats = {"easy": solved.get("easy", 0), "medium": solved.get("medium", 0), "hard": solved.get("hard", 0),
+             "total": solved.get("all", 0)}
+    contest = data.get("userContestRanking") or {}
+    if contest.get("rating"):
+        stats["contest_rating"] = round(contest["rating"])
+        stats["contests"] = contest.get("attendedContestsCount")
+        stats["top_percentage"] = contest.get("topPercentage")
+    title = (f"LeetCode: {stats['total']} problems solved (Easy {stats['easy']} · Medium {stats['medium']} · "
+             f"Hard {stats['hard']})")
+    facts.add("achievements", "title", title, ev, "leetcode:stats", extracted=stats)
+    if stats.get("contest_rating"):
+        facts.add("achievements", "description",
+                  f"Contest rating {stats['contest_rating']} over {stats.get('contests')} contests"
+                  + (f" (top {stats['top_percentage']}%)" if stats.get("top_percentage") else ""), ev, "leetcode:stats")
+    facts.add("contact", "website", f"https://leetcode.com/u/{name}", ev)
+    for lang in user.get("languageProblemCount") or []:
+        if lang.get("problemsSolved"):
+            facts.add("skills", "skill", lang["languageName"], f"{lang['problemsSolved']} LeetCode problems solved in {lang['languageName']}",
+                      f"leetcode-lang:{lang['languageName']}")
+    if stats["total"] >= 50:
+        facts.add("skills", "skill", "Data Structures and Algorithms", f"{stats['total']} problems solved on LeetCode", "leetcode-dsa")
+    return facts
+
+
+def fetch_hackerrank(username: str) -> Dict[str, Any]:
+    profile = http_json("GET", f"https://www.hackerrank.com/rest/contests/master/hackers/{username}/profile")
+    if not (profile or {}).get("model"):
+        raise NeedsReview(f"HackerRank user '{username}' not found")
+    badges = http_json("GET", f"https://www.hackerrank.com/rest/hackers/{username}/badges") or {}
+    return {"profile": profile["model"], "badges": badges.get("models") or []}
+
+
+def map_hackerrank(data: Dict[str, Any], facts: Facts) -> Facts:
+    p = data["profile"]
+    name = p.get("username")
+    ev = f"hackerrank.com/profile/{name}"
+    facts.add("contact", "website", f"https://www.hackerrank.com/profile/{name}", ev)
+    badges: List[Dict[str, Any]] = [b for b in data.get("badges", []) if b.get("stars")]
+    stats = {"badges": {b.get("badge_name"): b.get("stars") for b in badges}}
+    if badges:
+        summary = ", ".join(f"{b.get('badge_name')} {b.get('stars')}★" for b in badges)
+        facts.add("achievements", "title", f"HackerRank badges: {summary}", ev, "hackerrank:stats", extracted=stats)
+    for b in badges:
+        skill = (b.get("badge_name") or "").replace("Problem Solving", "Data Structures and Algorithms")
+        facts.add("skills", "skill", skill, f"HackerRank {b.get('badge_name')} badge, {b.get('stars')} stars", f"hackerrank:{b.get('badge_name')}")
+    return facts
+
+
+def _sync(conn: Any, job: Job, source: str, fetch, mapper) -> None:
+    loaded = load_connection(conn, job, source)
+    if not loaded:
+        return
+    row, cred = loaded
+    try:
+        data = fetch(cred["username"])
+    except NeedsReview:
+        set_status(conn, row["id"], "failed")
+        raise
+    except HttpError:
+        set_status(conn, row["id"], "failed")
+        raise
+    finish_sync(conn, job, row["id"], source, mapper(data, Facts(job.user_id, source, f"api:{source}")))
+
+
+def sync_leetcode(conn: Any, job: Job) -> None:
+    _sync(conn, job, "leetcode", fetch_leetcode, map_leetcode)
+
+
+def sync_hackerrank(conn: Any, job: Job) -> None:
+    _sync(conn, job, "hackerrank", fetch_hackerrank, map_hackerrank)

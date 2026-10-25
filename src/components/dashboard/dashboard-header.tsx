@@ -1,0 +1,490 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import {
+  Bell,
+  ChevronDown,
+  Plug,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Sun,
+  User,
+} from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
+import { YoraModal } from "@/components/dashboard/yora-modal";
+
+export function DashboardHeader({
+  user,
+}: {
+  user?: {
+    id?: string;
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+    role?: string | null;
+  };
+}) {
+  const [yoraOpen, setYoraOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [notifMenuOpen, setNotifMenuOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<{
+    people: Array<{ id: string; title: string; subtitle: string; url: string }>;
+    skills: Array<{ id: string; title: string; subtitle: string; url: string }>;
+    projects: Array<{ id: string; title: string; subtitle: string; url: string }>;
+    opportunities: Array<{ title: string; category: string; url: string }>;
+  } | null>(null);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setProfileMenuOpen(false);
+        setNotifMenuOpen(false);
+        setIsSearchFocused(false);
+        setMobileSearchOpen(false);
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (trimmed.length < 2) return;
+
+    let cancelled = false;
+    const timeout = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(trimmed)}`);
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setSearchResults(data.results);
+        }
+      } catch (e) {
+        console.error("Search fetch failed", e);
+      } finally {
+        if (!cancelled) {
+          setIsSearching(false);
+        }
+      }
+    }, 200);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+    };
+  }, [searchQuery]);
+
+  const activeSearchResults = searchQuery.trim().length >= 2 ? searchResults : null;
+
+  const displayName = user?.name?.trim() || (user?.email ? user.email.split("@")[0] : "Scholar");
+  const displayRole =
+    user?.role === "faculty"
+      ? "Faculty / Mentor"
+      : user?.role === "alumni"
+        ? "Alumni"
+        : "Student";
+  const initials = displayName
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "AT";
+  const avatarUrl = user?.image || null;
+
+  return (
+    <>
+      <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-[#E7EAF3] bg-white/95 px-4 sm:px-6 lg:px-8 backdrop-blur-md">
+        {/* Left: Brand area */}
+        <div className="flex items-center gap-6">
+          <Link
+            href="/dashboard"
+            aria-label="AI Tathastu Dashboard"
+            className="flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF496D]/30 rounded-xl"
+          >
+            <BrandLogo withTagline size="sm" />
+          </Link>
+        </div>
+
+        {/* Center: Large search bar with Categorized Dropdown */}
+        <div className="hidden md:flex flex-1 max-w-lg mx-6 relative">
+          <div className="relative w-full">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-[#8A9BB5]" />
+            <input
+              type="text"
+              value={searchQuery}
+              onFocus={() => setIsSearchFocused(true)}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search for people, projects, skills, opportunities..."
+              className="w-full h-10.5 pl-11 pr-4 rounded-full border border-[#E7EAF3] bg-[#F8FAFD] text-sm text-[#11182B] placeholder:text-[#8A9BB5] transition-all focus:bg-white focus:outline-none focus:border-[#FF496D] focus:ring-2 focus:ring-[#FF496D]/15"
+            />
+            {isSearching && (
+              <div className="absolute right-3.5 top-1/2 -translate-y-1/2">
+                <span className="size-3.5 block rounded-full border-2 border-[#FF496D] border-t-transparent animate-spin" />
+              </div>
+            )}
+          </div>
+
+          {/* Categorized Dropdown Results */}
+          {isSearchFocused && searchQuery.trim().length >= 2 && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setIsSearchFocused(false)}
+              />
+              <div className="absolute top-12 left-0 right-0 z-50 rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl max-h-[440px] overflow-y-auto">
+                {activeSearchResults &&
+                (activeSearchResults.people.length > 0 ||
+                  activeSearchResults.skills.length > 0 ||
+                  activeSearchResults.projects.length > 0 ||
+                  activeSearchResults.opportunities.length > 0) ? (
+                  <div className="space-y-3.5 text-xs">
+                    {/* People Category */}
+                    {activeSearchResults.people.length > 0 && (
+                      <div>
+                        <p className="px-2 font-bold uppercase tracking-wider text-[10px] text-slate-400 mb-1">
+                          People & Mentors
+                        </p>
+                        <div className="space-y-1">
+                          {activeSearchResults.people.map((p) => (
+                            <Link
+                              key={p.id}
+                              href={p.url}
+                              onClick={() => {
+                                setIsSearchFocused(false);
+                                setSearchQuery("");
+                              }}
+                              className="flex items-center justify-between rounded-xl px-2.5 py-1.5 hover:bg-slate-50 transition-colors"
+                            >
+                              <div>
+                                <p className="font-semibold text-slate-900">{p.title}</p>
+                                <p className="text-[11px] text-slate-500">{p.subtitle}</p>
+                              </div>
+                              <span className="text-[10px] font-semibold text-[#2878F0] bg-blue-50 px-2 py-0.5 rounded-full">
+                                Connect
+                              </span>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Skills Category */}
+                    {activeSearchResults.skills.length > 0 && (
+                      <div className="border-t border-slate-100 pt-2.5">
+                        <p className="px-2 font-bold uppercase tracking-wider text-[10px] text-slate-400 mb-1">
+                          Skills & Competencies
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 px-2">
+                          {activeSearchResults.skills.map((s) => (
+                            <Link
+                              key={s.id}
+                              href={s.url}
+                              onClick={() => {
+                                setIsSearchFocused(false);
+                                setSearchQuery("");
+                              }}
+                              className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:border-[#FF496D] hover:text-[#FF496D] transition-colors"
+                            >
+                              <span>{s.title}</span>
+                              <span className="text-[9px] text-slate-400 font-normal">({s.subtitle})</span>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Projects Category */}
+                    {activeSearchResults.projects.length > 0 && (
+                      <div className="border-t border-slate-100 pt-2.5">
+                        <p className="px-2 font-bold uppercase tracking-wider text-[10px] text-slate-400 mb-1">
+                          Projects & Repositories
+                        </p>
+                        <div className="space-y-1">
+                          {activeSearchResults.projects.map((proj) => (
+                            <Link
+                              key={proj.id}
+                              href={proj.url}
+                              onClick={() => {
+                                setIsSearchFocused(false);
+                                setSearchQuery("");
+                              }}
+                              className="flex items-center justify-between rounded-xl px-2.5 py-1.5 hover:bg-slate-50 transition-colors"
+                            >
+                              <div>
+                                <p className="font-semibold text-slate-900">{proj.title}</p>
+                                <p className="text-[11px] text-slate-500">{proj.subtitle}</p>
+                              </div>
+                              <span className="text-[10px] text-slate-400 font-mono">View →</span>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Opportunities Category */}
+                    {activeSearchResults.opportunities.length > 0 && (
+                      <div className="border-t border-slate-100 pt-2.5">
+                        <p className="px-2 font-bold uppercase tracking-wider text-[10px] text-slate-400 mb-1">
+                          Opportunities & Paths
+                        </p>
+                        <div className="space-y-1">
+                          {activeSearchResults.opportunities.map((o, idx) => (
+                            <Link
+                              key={idx}
+                              href={o.url}
+                              onClick={() => {
+                                setIsSearchFocused(false);
+                                setSearchQuery("");
+                              }}
+                              className="flex items-center justify-between rounded-xl px-2.5 py-1.5 hover:bg-slate-50 transition-colors"
+                            >
+                              <div>
+                                <p className="font-semibold text-slate-900">{o.title}</p>
+                                <p className="text-[11px] text-[#8554FF] font-medium">{o.category}</p>
+                              </div>
+                              <span className="text-[10px] text-slate-400 font-mono">Explore →</span>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="py-6 text-center text-slate-500 text-xs">
+                    {isSearching ? "Searching catalogue…" : `No matches found for "${searchQuery}"`}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Right actions */}
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          {/* Mobile search trigger button */}
+          <button
+            type="button"
+            onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
+            className="md:hidden flex size-10 items-center justify-center rounded-full border border-[#E7EAF3] bg-white text-[#617493] shadow-xs hover:bg-slate-50 transition-colors cursor-pointer min-h-[44px] min-w-[44px]"
+            aria-label="Toggle search"
+            aria-expanded={mobileSearchOpen}
+          >
+            <Search className="size-4" />
+          </button>
+
+          {/* Light/Theme toggle button */}
+          <button
+            type="button"
+            className="hidden sm:flex size-10 items-center justify-center rounded-full border border-[#E7EAF3] bg-white text-[#F59E0B] shadow-xs hover:bg-slate-50 transition-colors cursor-pointer"
+            aria-label="Toggle theme mode"
+          >
+            <Sun className="size-4.5" />
+          </button>
+
+          {/* Notifications button with unread indicator */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setNotifMenuOpen(!notifMenuOpen);
+                setProfileMenuOpen(false);
+              }}
+              className="relative flex size-10 items-center justify-center rounded-full border border-[#E7EAF3] bg-white text-[#617493] shadow-xs hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer min-h-[44px] min-w-[44px]"
+              aria-label="View notifications"
+              aria-expanded={notifMenuOpen}
+            >
+              <Bell className="size-4.5" />
+              <span className="absolute top-2.5 right-2.5 size-2 rounded-full bg-[#FF496D] ring-2 ring-white" />
+            </button>
+
+            {notifMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40 bg-transparent"
+                  onClick={() => setNotifMenuOpen(false)}
+                />
+                <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] max-w-xs sm:w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl z-50 text-sm animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <span className="font-bold text-slate-900">Notifications</span>
+                    <span className="text-xs font-semibold text-[#FF496D]">3 New</span>
+                  </div>
+                  <div className="mt-3 space-y-2.5 text-xs text-slate-600">
+                    <div className="p-2 rounded-xl bg-rose-50/50 border border-rose-100">
+                      <p className="font-semibold text-slate-900">GitHub Sync Verified</p>
+                      <p className="mt-0.5 text-slate-500">2 repositories & 147 contributions imported.</p>
+                    </div>
+                    <div className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors">
+                      <p className="font-semibold text-slate-900">New Mentorship Match</p>
+                      <p className="mt-0.5 text-slate-500">Dr. Priya Singh (IIT Bombay) viewed your skill graph.</p>
+                    </div>
+                    <div className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors">
+                      <p className="font-semibold text-slate-900">Research Call Matching 97%</p>
+                      <p className="mt-0.5 text-slate-500">LLM-based Intelligent Systems at IIT Delhi.</p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* User profile dropdown button */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setProfileMenuOpen(!profileMenuOpen);
+                setNotifMenuOpen(false);
+              }}
+              className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-slate-100/70 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF496D]/30"
+              aria-label="User account menu"
+              aria-expanded={profileMenuOpen}
+            >
+              <div className="relative size-8 rounded-full overflow-hidden border border-slate-200 shadow-xs shrink-0">
+                {avatarUrl ? (
+                  <Image
+                    src={avatarUrl}
+                    alt={displayName}
+                    fill
+                    className="object-cover"
+                    sizes="32px"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-tr from-[#FF496D] to-[#8554FF] text-white text-[11px] font-bold">
+                    {initials}
+                  </div>
+                )}
+              </div>
+              <div className="hidden sm:block text-left">
+                <p className="text-xs font-bold text-[#11182B] leading-tight truncate max-w-[120px]">
+                  {displayName}
+                </p>
+                <p className="text-[0.6875rem] font-medium text-[#617493] leading-none">
+                  {displayRole}
+                </p>
+              </div>
+              <ChevronDown className="size-3.5 text-slate-400" />
+            </button>
+
+            {profileMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40 bg-transparent"
+                  onClick={() => setProfileMenuOpen(false)}
+                />
+                <div className="absolute right-0 mt-2 w-56 max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white py-2 shadow-xl z-50 text-xs font-semibold text-slate-700 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-4 py-2 border-b border-slate-100">
+                    <p className="font-bold text-slate-900 text-sm truncate">{displayName}</p>
+                    <p className="text-slate-400 font-normal truncate">{user?.email || "verified@aitathastu.com"}</p>
+                  </div>
+                  <Link
+                    href="/profile"
+                    onClick={() => setProfileMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-slate-50 transition-colors text-slate-700 hover:text-slate-900 min-h-[40px]"
+                  >
+                    <User className="size-4 text-slate-400" />
+                    My Profile
+                  </Link>
+                  <Link
+                    href="/settings/privacy"
+                    onClick={() => setProfileMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-slate-50 transition-colors text-slate-700 hover:text-slate-900 min-h-[40px]"
+                  >
+                    <ShieldCheck className="size-4 text-slate-400" />
+                    Privacy Settings
+                  </Link>
+                  <Link
+                    href="/settings/integrations"
+                    onClick={() => setProfileMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-4 py-2.5 hover:bg-slate-50 transition-colors text-slate-700 hover:text-slate-900 min-h-[40px]"
+                  >
+                    <Plug className="size-4 text-slate-400" />
+                    Connected Integrations
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Primary "Ask Yora ✨" button */}
+          <button
+            type="button"
+            onClick={() => setYoraOpen(true)}
+            className="flex items-center gap-1.5 h-10 px-3 sm:px-4 rounded-full bg-gradient-to-r from-[#FF496D] to-[#FF713D] text-white text-xs font-bold shadow-sm hover:opacity-95 active:scale-95 transition-all cursor-pointer select-none shrink-0 touch-manipulation min-h-[40px]"
+          >
+            <span>Ask Yora</span>
+            <Sparkles className="size-3.5" />
+          </button>
+        </div>
+      </header>
+
+      {/* Mobile Search Overlay Bar */}
+      {mobileSearchOpen && (
+        <div className="md:hidden sticky top-16 z-30 bg-white border-b border-[#E7EAF3] p-3 shadow-sm animate-in slide-in-from-top-2 duration-150">
+          <div className="relative w-full">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#8A9BB5]" />
+            <input
+              type="text"
+              value={searchQuery}
+              autoFocus
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search people, projects, skills…"
+              className="w-full h-10 pl-10 pr-4 rounded-xl border border-[#E7EAF3] bg-[#F8FAFD] text-xs text-[#11182B] placeholder:text-[#8A9BB5] focus:bg-white focus:outline-none focus:border-[#FF496D]"
+            />
+          </div>
+          {activeSearchResults && (
+            <div className="mt-2 rounded-xl border border-slate-200 bg-white p-2 shadow-lg max-h-60 overflow-y-auto text-xs space-y-2">
+              {activeSearchResults.people.length > 0 && (
+                <div>
+                  <p className="px-2 font-bold uppercase text-[10px] text-slate-400">People</p>
+                  {activeSearchResults.people.slice(0, 3).map((p) => (
+                    <Link
+                      key={p.id}
+                      href={p.url}
+                      onClick={() => setMobileSearchOpen(false)}
+                      className="block p-1.5 hover:bg-slate-50 rounded-lg"
+                    >
+                      <p className="font-semibold text-slate-900">{p.title}</p>
+                      <p className="text-[10px] text-slate-500">{p.subtitle}</p>
+                    </Link>
+                  ))}
+                </div>
+              )}
+              {activeSearchResults.skills.length > 0 && (
+                <div>
+                  <p className="px-2 font-bold uppercase text-[10px] text-slate-400">Skills</p>
+                  {activeSearchResults.skills.slice(0, 3).map((s) => (
+                    <Link
+                      key={s.id}
+                      href={s.url}
+                      onClick={() => setMobileSearchOpen(false)}
+                      className="block p-1.5 hover:bg-slate-50 rounded-lg"
+                    >
+                      <p className="font-semibold text-slate-900">{s.title}</p>
+                      <p className="text-[10px] text-[#8554FF]">{s.subtitle}</p>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Yora AI Assistant Slide-in Dialog */}
+      <YoraModal
+        open={yoraOpen}
+        onOpenChange={setYoraOpen}
+        userName={displayName}
+      />
+    </>
+  );
+}

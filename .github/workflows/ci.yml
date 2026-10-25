@@ -1,0 +1,74 @@
+# Every push and PR to main: web app (types, lint, unit, E2E) and worker
+# (unit) in parallel. Needs no secrets: the E2E runs against its own
+# throwaway stack (e2e/support/stack.mts) and never reaches Neon, R2, the
+# worker or OAuth; the worker tests use no DB or network.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A newer push to the same branch or PR supersedes the running check.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web (typecheck, lint, Vitest, Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24.x # package.json engines
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E (Phase 1–3 journey)
+        run: npm run test:e2e
+        env:
+          CI: "1"
+
+      - name: Upload Playwright report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+  worker:
+    name: Worker (pytest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12" # matches worker/Dockerfile
+          cache: pip
+          cache-dependency-path: worker/requirements.txt
+
+      - run: pip install -r requirements.txt pytest==8.3.5
+      - run: pytest -q

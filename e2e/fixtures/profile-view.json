@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "computedAt": "__NOW__",
+  "trigger": "onboarding_complete",
+  "identity": { "name": "Asha Rao", "university": "IIT Madras", "degree": "B.Tech", "careerRole": "ml_engineer" },
+  "goals": { "primaryRole": "ml_engineer", "roles": ["ml_engineer"], "roleOther": null, "priorities": ["avasar_jobs", "learn_ai_ml"] },
+  "skills": [
+    { "name": "PyTorch", "category": "ml_framework", "evidenceStrength": 0.9, "sources": ["resume", "github"], "verificationStatus": "verified" },
+    { "name": "Python", "category": "language", "evidenceStrength": 0.85, "sources": ["resume", "github"], "verificationStatus": "verified" },
+    { "name": "SQL", "category": "data", "evidenceStrength": 0.6, "sources": ["resume"], "verificationStatus": "claimed" }
+  ],
+  "projects": [
+    { "canonicalTitle": "Resume Parser", "technologies": ["Python", "PyTorch"], "status": "matched", "matchConfidence": 0.92 }
+  ],
+  "erisScore": {
+    "overall": 0.63,
+    "byRole": { "ml_engineer": 0.63 },
+    "gaps": [
+      { "skill": "Kubernetes", "readiness": 0.2, "weight": 0.8 },
+      { "skill": "Docker", "readiness": 0, "weight": 0.7 }
+    ]
+  },
+  "readinessIndicators": { "resumeLinked": true, "connectorsCount": 1, "confirmedFacts": 9, "profileComplete": 0.8 },
+  "widgets": [
+    {
+      "id": "eris_readiness", "module": "eris", "label": "Interview readiness", "score": 0.91,
+      "components": { "I": 1, "G": 0.9, "R": 0.8, "F": 1 }, "state": "ready",
+      "data": {
+        "role": "ml_engineer", "score": 0.63,
+        "gaps": [
+          { "skill": "Kubernetes", "readiness": 0.2, "weight": 0.8 },
+          { "skill": "Docker", "readiness": 0, "weight": 0.7 }
+        ]
+      }
+    },
+    {
+      "id": "skill_gaps", "module": "learn", "label": "Skills to develop", "score": 0.84,
+      "components": { "I": 1, "G": 0.8, "R": 0.8, "F": 1 }, "state": "ready",
+      "data": {
+        "role": "ml_engineer",
+        "gaps": [
+          { "skill": "Kubernetes", "readiness": 0.2, "weight": 0.8 },
+          { "skill": "Docker", "readiness": 0, "weight": 0.7 }
+        ]
+      }
+    },
+    {
+      "id": "github_activity", "module": "profile", "label": "Recent GitHub work", "score": 0.7,
+      "components": { "I": 0.5, "G": 0.7, "R": 1, "F": 1 }, "state": "ready",
+      "data": { "lastSyncAt": "__NOW__" }
+    },
+    {
+      "id": "profile_completeness", "module": "profile", "label": "Finish your profile", "score": 0.4,
+      "components": { "I": 0.3, "G": 0.5, "R": 1, "F": 1 }, "state": "ready",
+      "data": {
+        "percent": 80,
+        "checks": [
+          { "id": "resume", "label": "Resume reviewed", "done": true },
+          { "id": "sources", "label": "A source connected", "done": true },
+          { "id": "headline", "label": "Add a headline", "done": false }
+        ]
+      }
+    },
+    {
+      "id": "job_matches", "module": "avasar", "label": "Jobs that fit you", "score": 0.2,
+      "components": { "I": 1, "G": 0.2, "R": 0, "F": 1 }, "state": "empty", "data": null
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 80" fill="#1E293B">
+  <!-- Dome -->
+  <path d="M 40 24 C 40 14, 60 14, 60 24 Z" />
+  <rect x="47" y="10" width="6" height="5" />
+  <!-- Pediment / Roof -->
+  <polygon points="15,30 50,18 85,30" />
+  <rect x="18" y="30" width="64" height="4" />
+  <!-- Columns -->
+  <rect x="22" y="34" width="4" height="28" />
+  <rect x="33" y="34" width="4" height="28" />
+  <rect x="44" y="34" width="4" height="28" />
+  <rect x="52" y="34" width="4" height="28" />
+  <rect x="63" y="34" width="4" height="28" />
+  <rect x="74" y="34" width="4" height="28" />
+  <!-- Base steps -->
+  <rect x="18" y="62" width="64" height="3" />
+  <rect x="14" y="65" width="72" height="4" />
+  <rect x="10" y="69" width="80" height="5" />
+</svg>
